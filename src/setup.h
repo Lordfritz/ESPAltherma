@@ -16,7 +16,7 @@
 #define MQTT_PORT 1883
 //#define MQTT_ENCRYPTED // uncomment if MQTT connection is encrypted via TLS
 
-#define FREQUENCY 30000 //query values every 30 sec
+#define FREQUENCY 10000 //query values every 10 sec
 
 #if defined(ARDUINO_M5Stick_C) || defined(ARDUINO_M5Stick_C_Plus) || defined(ARDUINO_M5Stick_C_Plus2)  || defined(ARDUINO_M5Stack_Tough)
 // Values used when M5StickC, M5STickCPlus or M5Stick_C_Plus2 environment is selected:
@@ -33,8 +33,8 @@
 
 //Smart grid control - Optional:
 //Uncomment and set to enable SG mqtt functions
-//#define PIN_SG1 32// Pin connected to dry contact SG 1 relay (normally open)
-//#define PIN_SG2 33// Pin connected to dry contact SG 2 relay (normally open)
+#define PIN_SG1 32// Pin connected to dry contact SG 1 relay (normally open)
+#define PIN_SG2 33// Pin connected to dry contact SG 2 relay (normally open)
 // Define if your SG relay board is Low or High triggered (signal pins)
 // Only uncomment one of them
 #define SG_RELAY_HIGH_TRIGGER
@@ -98,7 +98,7 @@
 //#include "def/Altherma(ERGA D EHV-EHB-EHVZ DA series 04-08kW).h"
 //#include "def/Altherma(ERGA D EHV-EHB-EHVZ DJ series 04-08 kW).h"
 //#include "def/Altherma(ERGA E EHSH-X P30-50 E_EF series 04-08kW-ECH2O).h"
-//#include "def/Altherma(ERGA E EHV-EHB-EHVZ E_EJ series 04-08kW).h"
+#include "def/Altherma(ERGA E EHV-EHB-EHVZ E_EJ series 04-08kW).h"
 //#include "def/Altherma(ERLA D EBSH-X 16P30-50 D SERIES 11-16kW-ECH2O).h"
 //#include "def/Altherma(ERLA D EBV-EBB-EBVZ D SERIES 11-16kW).h"
 //#include "def/Altherma(ERLA03 D EHFH-EHFZ DJ series 3kW).h"
