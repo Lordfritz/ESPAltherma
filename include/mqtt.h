@@ -144,7 +144,7 @@ void reconnectMqtt()
       client.subscribe("espaltherma/sg/set");
       char state[1];
       sprintf(state, "%d", EEPROM.read(EEPROM_SG));
-      client.publish("espaltherma/sg/state", state);
+      client.publish("espaltherma/sg/state", state, true);
 #endif
 
 #ifdef SAFETY_RELAY_PIN
@@ -222,7 +222,7 @@ void callbackSg(byte *payload, unsigned int length)
     // Set SG 0 mode => SG1 = INACTIVE, SG2 = INACTIVE
     digitalWriteSgPins(0);
     saveSgState(0);
-    client.publish("espaltherma/sg/state", "0");
+    client.publish("espaltherma/sg/state", "0", true);
     Serial.println("Set SG mode to 0 - Normal operation");
   }
   else if (payload[0] == '1')
@@ -230,7 +230,7 @@ void callbackSg(byte *payload, unsigned int length)
     // Set SG 1 mode => SG1 = INACTIVE, SG2 = ACTIVE
     digitalWriteSgPins(1);
     saveSgState(1);
-    client.publish("espaltherma/sg/state", "1");
+    client.publish("espaltherma/sg/state", "1", true);
     Serial.println("Set SG mode to 1 - Forced OFF");
   }
   else if (payload[0] == '2')
@@ -238,7 +238,7 @@ void callbackSg(byte *payload, unsigned int length)
     // Set SG 2 mode => SG1 = ACTIVE, SG2 = INACTIVE
     digitalWriteSgPins(2);
     saveSgState(2);
-    client.publish("espaltherma/sg/state", "2");
+    client.publish("espaltherma/sg/state", "2", true);
     Serial.println("Set SG mode to 2 - Recommended ON");
   }
   else if (payload[0] == '3')
@@ -246,7 +246,7 @@ void callbackSg(byte *payload, unsigned int length)
     // Set SG 3 mode => SG1 = ACTIVE, SG2 = ACTIVE
     digitalWriteSgPins(3);
     saveSgState(3);
-    client.publish("espaltherma/sg/state", "3");
+    client.publish("espaltherma/sg/state", "3", true);
     Serial.println("Set SG mode to 3 - Forced ON");
   }
   else
