@@ -153,24 +153,42 @@ void reconnectMqtt()
         client.publish("espaltherma/sg/state", state, true);
       #endif
 
-#ifndef PIN_THERM
-      client.publish("homeassistant/switch/espAltherma/switch/config", "", true);
-#endif
-
-#ifdef SAFETY_RELAY_PIN
-      // Safety relay
-      #ifdef MQTT_HA_DISCOVERY
-      client.publish("homeassistant/switch/espAltherma/safety/config", "{\"name\":\"Altherma Safety\",\"cmd_t\":\"~/SAFETY\",\"stat_t\":\"~/SAFETY_STATE\",\"pl_off\":\"0\",\"pl_on\":\"1\",\"~\":\"espaltherma\"}", true);
+      #ifdef SAFETY_RELAY_PIN
+        // Safety relay
+        #ifdef MQTT_HA_DISCOVERY
+          client.publish("homeassistant/switch/espAltherma/safety/config", "{\"name\":\"Altherma Safety\",\"cmd_t\":\"~/SAFETY\",\"stat_t\":\"~/SAFETY_STATE\",\"pl_off\":\"0\",\"pl_on\":\"1\",\"~\":\"espaltherma\"}", true);
+        #endif
+        client.subscribe("espaltherma/SAFETY");
       #endif
-      client.subscribe("espaltherma/SAFETY");
-#endif
 
-#ifndef PIN_SG1
-      #ifdef MQTT_HA_DISCOVERY
-      // Publish empty retained message so discovered entities are removed from HA
-      client.publish("homeassistant/select/espAltherma/sg/config", "", true);
+      #ifdef PIN_PULSE
+        // Pulse Meter
+        #ifdef MQTT_HA_DISCOVERY
+          client.publish("homeassistant/number/espAltherma/pulse/config", "{\"availability\":[{\"topic\":\"espaltherma/LWT\",\"payload_available\":\"Online\",\"payload_not_available\":\"Offline\"}],\"availability_mode\":\"all\",\"unique_id\":\"espaltherma_grid\",\"device\":{\"identifiers\":[\"ESPAltherma\"],\"manufacturer\":\"ESPAltherma\",\"model\":\"M5StickC PLUS ESP32-PICO\",\"name\":\"ESPAltherma\"},\"icon\":\"mdi:meter-electric\",\"name\":\"EspAltherma Power Limitation\",\"min\":0,\"max\":90000,\"mode\":\"box\",\"unit_of_measurement\":\"W\",\"command_topic\":\"espaltherma/pulse/set\",\"state_topic\":\"espaltherma/pulse/state\"}", true);
+          client.subscribe("espaltherma/pulse/set");
+          client.publish("espaltherma/pulse/state", "0");
+        #endif
       #endif
-#endif
+
+      #ifndef PIN_THERM
+        #ifdef MQTT_HA_DISCOVERY
+          client.publish("homeassistant/switch/espAltherma/switch/config", "", true);
+        #endif
+      #endif
+
+      #ifndef PIN_SG1
+        #ifdef MQTT_HA_DISCOVERY
+          // Publish empty retained message so discovered entities are removed from HA
+          client.publish("homeassistant/select/espAltherma/sg/config", "", true);
+        #endif
+      #endif
+
+      #ifndef PIN_PULSE
+        #ifdef MQTT_HA_DISCOVERY
+          // Publish empty retained message so discovered entities are removed from HA
+          client.publish("homeassistant/select/espAltherma/pulse/config", "", true);
+        #endif
+      #endif
     }
     else
     {
@@ -294,6 +312,95 @@ void callbackSafety(byte *payload, unsigned int length)
 }
 #endif
 
+#ifdef PIN_PULSE
+// time between pulses (excl. PULSE_DURATION_MS)
+volatile double ms_until_pulse = 0;
+
+// hardware timer pointer
+hw_timer_t * timerPulseStart = NULL;
+hw_timer_t * timerPulseEnd = NULL;
+
+// hardware timer callback for when the pulse should start
+void IRAM_ATTR onPulseStartTimer()
+{
+  #ifdef PULSE_LED_BUILTIN
+    digitalWrite(LED_BUILTIN, HIGH);
+  #endif
+  digitalWrite(PIN_PULSE, HIGH);
+
+  timerWrite(timerPulseEnd, 0);
+  timerAlarmWrite(timerPulseEnd, PULSE_DURATION_MS * 1000, false);
+  timerAlarmEnable(timerPulseEnd);
+}
+
+// hardware timer callback when the pulse duration is over
+void IRAM_ATTR onPulseEndTimer()
+{
+  #ifdef PULSE_LED_BUILTIN
+    digitalWrite(LED_BUILTIN, LOW);
+  #endif
+  digitalWrite(PIN_PULSE, LOW);
+
+  timerWrite(timerPulseStart, 0);
+  timerAlarmWrite(timerPulseStart, ms_until_pulse * 1000, false);
+  timerAlarmEnable(timerPulseStart);
+}
+
+void setupPulseTimer()
+{
+  Serial.println("Setting up pulse timer");
+  // Initilise the timer.
+  // Parameter 1 is the timer we want to use. Valid: 0, 1, 2, 3 (total 4 timers)
+  // Parameter 2 is the prescaler. The ESP32 default clock is at 80MhZ. The value "80" will
+  // divide the clock by 80, giving us 1,000,000 ticks per second.
+  // Parameter 3 is true means this counter will count up, instead of down (false).
+  timerPulseStart = timerBegin(0, 80, true);
+  timerPulseEnd = timerBegin(1, 80, true);
+
+  // Attach the timer to the interrupt service routine named "onTimer".
+  // The 3rd parameter is set to "true" to indicate that we want to use the "edge" type (instead of "flat").
+  timerAttachInterrupt(timerPulseStart, &onPulseStartTimer, true);
+  timerAttachInterrupt(timerPulseEnd, &onPulseEndTimer, true);
+
+  // one tick is 1 micro second -> multiply msec by 1000
+  timerAlarmWrite(timerPulseStart, ms_until_pulse * 1000, false);
+  timerAlarmEnable(timerPulseStart);
+}
+
+// Pulse Meter callback
+void callbackPulse(byte *payload, unsigned int length)
+{
+  payload[length] = '\0';
+  String ss((char*)payload);
+  long target_watt = ss.toInt();
+
+  // also converts from kWh to Wh
+  float WH_PER_PULSE = (1.0 / PULSES_PER_kWh) * 1000;
+
+  ms_until_pulse = ((3600.0 / target_watt) * WH_PER_PULSE * 1000) - PULSE_DURATION_MS;
+  if ((ms_until_pulse + PULSE_DURATION_MS) > 60 * 1000) {
+    // cap the maximum pulse length to 1 minute
+    // a change of the pulse is only applied, after the current pulse is finished. Thus if the pulse rate is very low,
+    // it will take a long time to adjust the rate
+    ms_until_pulse = 60 * 1000;
+    target_watt = (long) WH_PER_PULSE * 60;
+    Serial.printf("Capping pulse to %d Watt to ensure pulse rate is <= 60 sec\n", target_watt);
+  }
+  if (ms_until_pulse < 100) {
+    // ensure a 100 ms gap between two pulses
+    // taken from https://www.manualslib.de/manual/480757/Daikin-Brp069A61.html?page=10#manual
+    ms_until_pulse = 100;
+    long original_target = target_watt;
+    target_watt = (long) ((1000 * WH_PER_PULSE * 3600) / (ms_until_pulse + PULSE_DURATION_MS));
+    Serial.printf("WARNING pulse frequency to high, capping at %d Watt! Target is %d Watt. Decrease PULSE_DURATION or PULSES_PER_kWh\n", target_watt, original_target);
+  }
+  if (timerPulseStart == NULL) {
+    setupPulseTimer();
+  }
+  client.publish("espaltherma/pulse/state", String(target_watt).c_str());
+  Serial.printf("Set pulse meter to target %d Watt\n", target_watt);
+}
+#endif
 
 void callback(char *topic, byte *payload, unsigned int length)
 {
@@ -313,6 +420,12 @@ void callback(char *topic, byte *payload, unsigned int length)
   else if (strcmp(topic, "espaltherma/SAFETY") == 0)
   {
     callbackSafety(payload, length);
+  }
+#endif
+#ifdef PIN_PULSE
+  else if (strcmp(topic, "espaltherma/pulse/set") == 0)
+  {
+    callbackPulse(payload, length);
   }
 #endif
 
