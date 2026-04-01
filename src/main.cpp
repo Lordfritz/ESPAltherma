@@ -324,26 +324,30 @@ void setup()
   Serial.begin(115200);
   setupScreen();
   MySerial.begin(9600, SERIAL_CONFIG, RX_PIN, TX_PIN);
-  pinMode(PIN_THERM, OUTPUT);
-  // digitalWrite(PIN_THERM, PIN_THERM_ACTIVE_STATE);
 
-#ifdef SAFETY_RELAY_PIN
-  pinMode(SAFETY_RELAY_PIN, OUTPUT);
-  digitalWrite(SAFETY_RELAY_PIN, !SAFETY_RELAY_ACTIVE_STATE);
-#endif
+  #ifdef PIN_THERM
+    //Thermostat relay - Set first to the inactive state, before configuring as outputs (avoid false triggering when initializing)
+    digitalWrite(PIN_THERM, THERM_RELAY_INACTIVE_STATE);
+    pinMode(PIN_THERM, OUTPUT);
+  #endif
 
-#ifdef PIN_SG1
-  //Smartgrid pins - Set first to the inactive state, before configuring as outputs (avoid false triggering when initializing)
-  digitalWrite(PIN_SG1, SG_RELAY_INACTIVE_STATE);
-  digitalWrite(PIN_SG2, SG_RELAY_INACTIVE_STATE);
-  pinMode(PIN_SG1, OUTPUT);
-  pinMode(PIN_SG2, OUTPUT);
+  #ifdef SAFETY_RELAY_PIN
+    pinMode(SAFETY_RELAY_PIN, OUTPUT);
+    digitalWrite(SAFETY_RELAY_PIN, !SAFETY_RELAY_ACTIVE_STATE);
+  #endif
 
-#endif
-#ifdef ARDUINO_M5Stick_C_Plus
-  gpio_pulldown_dis(GPIO_NUM_25);
-  gpio_pullup_dis(GPIO_NUM_25);
-#endif
+  #ifdef PIN_SG1
+    //Smartgrid pins - Set first to the inactive state, before configuring as outputs (avoid false triggering when initializing)
+    digitalWrite(PIN_SG1, SG_RELAY_INACTIVE_STATE);
+    digitalWrite(PIN_SG2, SG_RELAY_INACTIVE_STATE);
+    pinMode(PIN_SG1, OUTPUT);
+    pinMode(PIN_SG2, OUTPUT);
+
+  #endif
+  #ifdef ARDUINO_M5Stick_C_Plus
+    gpio_pulldown_dis(GPIO_NUM_25);
+    gpio_pullup_dis(GPIO_NUM_25);
+  #endif
 
   EEPROM.begin(10);
   restoreEEPROM();//Restore previous state

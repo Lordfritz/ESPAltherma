@@ -97,10 +97,12 @@ void saveThermState(uint8_t state)
 void restoreEEPROM()
 {
   if ('R' == EEPROM.read(EEPROM_CHK)) {
-    mqttSerial.printf("Restoring previous state: %s", (EEPROM.read(EEPROM_STATE) == PIN_THERM_ACTIVE_STATE) ? "On" : "Off");
-    digitalWrite(PIN_THERM, EEPROM.read(EEPROM_STATE));
+    #ifdef PIN_THERM
+      mqttSerial.printf("Restoring previous state: %s", (EEPROM.read(EEPROM_STATE) == THERM_RELAY_ACTIVE_STATE) ? "On" : "Off");
+      digitalWrite(PIN_THERM, EEPROM.read(EEPROM_STATE));
+    #endif
     #ifdef PIN_SG1
-    digitalWriteSgPins(EEPROM.read(EEPROM_SG));
+      digitalWriteSgPins(EEPROM.read(EEPROM_SG));
     #endif
   }
   else
@@ -108,11 +110,13 @@ void restoreEEPROM()
     mqttSerial.printf("EEPROM not initialized (%d). Initializing...", EEPROM.read(EEPROM_CHK));
     EEPROM.write(EEPROM_CHK, 'R');
     EEPROM.commit();
-    saveThermState(!PIN_THERM_ACTIVE_STATE);
-    digitalWrite(PIN_THERM, !PIN_THERM_ACTIVE_STATE);
+    #ifdef PIN_THERM
+      saveThermState(THERM_RELAY_INACTIVE_STATE);
+      digitalWrite(PIN_THERM, THERM_RELAY_INACTIVE_STATE);
+    #endif
     #ifdef PIN_SG1
-    saveSgState(0);
-    digitalWriteSgPins(0);
+      saveSgState(0);
+      digitalWriteSgPins(0);
     #endif
   }
 }
@@ -129,22 +133,28 @@ void reconnectMqtt()
     {
       Serial.println("connected!");
       #ifdef MQTT_HA_DISCOVERY
-      client.publish("homeassistant/sensor/espAltherma/config", "{\"name\":\"AlthermaSensors\",\"stat_t\":\"~/LWT\",\"avty_t\":\"~/LWT\",\"pl_avail\":\"Online\",\"pl_not_avail\":\"Offline\",\"uniq_id\":\"espaltherma\",\"device\":{\"identifiers\":[\"ESPAltherma\"]}, \"~\":\"espaltherma\",\"json_attr_t\":\"~/ATTR\"}", true);
-      client.publish("homeassistant/switch/espAltherma/config", "{\"name\":\"Altherma\",\"cmd_t\":\"~/POWER\",\"stat_t\":\"~/STATE\",\"pl_off\":\"OFF\",\"pl_on\":\"ON\",\"~\":\"espaltherma\"}", true);
+        client.publish("homeassistant/sensor/espAltherma/AlthermaSensors/config", "{\"availability\":[{\"topic\":\"espaltherma/LWT\",\"payload_available\":\"Online\",\"payload_not_available\":\"Offline\"}],\"availability_mode\":\"all\",\"unique_id\":\"espaltherma_sensors\",\"device\":{\"identifiers\":[\"ESPAltherma\"],\"manufacturer\":\"ESPAltherma\",\"model\":\"M5StickC PLUS ESP32-PICO\",\"name\":\"ESPAltherma\"},\"icon\":\"mdi:access-point-check\",\"name\":\"ESPAltherma Sensors\",\"state_topic\":\"espaltherma/LWT\",\"json_attributes_topic\":\"espaltherma/ATTR\"}", true);
+        #ifdef PIN_THERM
+          client.publish("homeassistant/switch/espAltherma/switch/config", "{\"availability\":[{\"topic\":\"espaltherma/LWT\",\"payload_available\":\"Online\",\"payload_not_available\":\"Offline\"}],\"availability_mode\":\"all\",\"unique_id\":\"espaltherma_switch\",\"device\":{\"identifiers\":[\"ESPAltherma\"],\"manufacturer\":\"ESPAltherma\",\"model\":\"M5StickC PLUS ESP32-PICO\",\"name\":\"ESPAltherma\"},\"icon\":\"mdi:water-boiler\",\"name\":\"EspAltherma Heat Pump Demand\",\"command_topic\":\"espaltherma/POWER\",\"state_topic\":\"espaltherma/STATE\",\"payload_on\":\"ON\",\"payload_off\":\"OFF\"}", true);
+          // Subscribe
+          client.subscribe("espaltherma/POWER");
+        #endif
       #endif
       client.publish(MQTT_lwt, "Online", true);
 
-      // Subscribe
-      client.subscribe("espaltherma/POWER");
-#ifdef PIN_SG1
-      // Smart Grid
-      #ifdef MQTT_HA_DISCOVERY
-      client.publish("homeassistant/select/espAltherma/sg/config", "{\"availability\":[{\"topic\":\"espaltherma/LWT\",\"payload_available\":\"Online\",\"payload_not_available\":\"Offline\"}],\"availability_mode\":\"all\",\"unique_id\":\"espaltherma_sg\",\"device\":{\"identifiers\":[\"ESPAltherma\"],\"manufacturer\":\"ESPAltherma\",\"model\":\"M5StickC PLUS ESP32-PICO\",\"name\":\"ESPAltherma\"},\"icon\":\"mdi:solar-power\",\"name\":\"EspAltherma Smart Grid\",\"command_topic\":\"espaltherma/sg/set\",\"command_template\":\"{% if value == 'Free Running' %} 0 {% elif value == 'Forced Off' %} 1 {% elif value == 'Recommended On' %} 2 {% elif value == 'Forced On' %} 3 {% else %} 0 {% endif %}\",\"options\":[\"Free Running\",\"Forced Off\",\"Recommended On\",\"Forced On\"],\"state_topic\":\"espaltherma/sg/state\",\"value_template\":\"{% set mapper = { '0':'Free Running', '1':'Forced Off', '2':'Recommended On', '3':'Forced On' } %} {% set word = mapper[value] %} {{ word }}\"}", true);
+      #ifdef PIN_SG1
+        // Smart Grid
+        #ifdef MQTT_HA_DISCOVERY
+          client.publish("homeassistant/select/espAltherma/sg/config", "{\"availability\":[{\"topic\":\"espaltherma/LWT\",\"payload_available\":\"Online\",\"payload_not_available\":\"Offline\"}],\"availability_mode\":\"all\",\"unique_id\":\"espaltherma_sg\",\"device\":{\"identifiers\":[\"ESPAltherma\"],\"manufacturer\":\"ESPAltherma\",\"model\":\"M5StickC PLUS ESP32-PICO\",\"name\":\"ESPAltherma\"},\"icon\":\"mdi:solar-power\",\"name\":\"EspAltherma Smart Grid\",\"command_topic\":\"espaltherma/sg/set\",\"command_template\":\"{% if value == 'Free Running' %} 0 {% elif value == 'Forced Off' %} 1 {% elif value == 'Recommended On' %} 2 {% elif value == 'Forced On' %} 3 {% else %} 0 {% endif %}\",\"options\":[\"Free Running\",\"Forced Off\",\"Recommended On\",\"Forced On\"],\"state_topic\":\"espaltherma/sg/state\",\"value_template\":\"{% set mapper = { '0':'Free Running', '1':'Forced Off', '2':'Recommended On', '3':'Forced On' } %} {% set word = mapper[value] %} {{ word }}\"}", true);
+        #endif
+        client.subscribe("espaltherma/sg/set");
+        char state[1];
+        sprintf(state, "%d", EEPROM.read(EEPROM_SG));
+        client.publish("espaltherma/sg/state", state, true);
       #endif
-      client.subscribe("espaltherma/sg/set");
-      char state[1];
-      sprintf(state, "%d", EEPROM.read(EEPROM_SG));
-      client.publish("espaltherma/sg/state", state, true);
+
+#ifndef PIN_THERM
+      client.publish("homeassistant/switch/espAltherma/switch/config", "", true);
 #endif
 
 #ifdef SAFETY_RELAY_PIN
@@ -187,17 +197,21 @@ void callbackTherm(byte *payload, unsigned int length)
   // Ok I'm not super proud of this, but it works :p
   if (payload[1] == 'F')
   { //turn off
-    digitalWrite(PIN_THERM, !PIN_THERM_ACTIVE_STATE);
-    saveThermState(!PIN_THERM_ACTIVE_STATE);
-    client.publish("espaltherma/STATE", "OFF", true);
-    mqttSerial.println("Turned OFF");
+    #ifdef PIN_THERM
+      digitalWrite(PIN_THERM, THERM_RELAY_INACTIVE_STATE);
+      saveThermState(THERM_RELAY_INACTIVE_STATE);
+      client.publish("espaltherma/STATE", "OFF", true);
+      mqttSerial.println("Turned OFF");
+    #endif
   }
   else if (payload[1] == 'N')
   { //turn on
-    digitalWrite(PIN_THERM, PIN_THERM_ACTIVE_STATE);
-    saveThermState(PIN_THERM_ACTIVE_STATE);
-    client.publish("espaltherma/STATE", "ON", true);
-    mqttSerial.println("Turned ON");
+    #ifdef PIN_THERM
+      digitalWrite(PIN_THERM, THERM_RELAY_ACTIVE_STATE);
+      saveThermState(THERM_RELAY_ACTIVE_STATE);
+      client.publish("espaltherma/STATE", "ON", true);
+      mqttSerial.println("Turned ON");
+    #endif
   }
   else if (payload[0] == 'R') //R(eset/eboot)
   {
