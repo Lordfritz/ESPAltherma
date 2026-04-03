@@ -156,7 +156,7 @@ void reconnectMqtt()
       #ifdef SAFETY_RELAY_PIN
         // Safety relay
         #ifdef MQTT_HA_DISCOVERY
-          client.publish("homeassistant/switch/espAltherma/safety/config", "{\"name\":\"Altherma Safety\",\"cmd_t\":\"~/SAFETY\",\"stat_t\":\"~/SAFETY_STATE\",\"pl_off\":\"0\",\"pl_on\":\"1\",\"~\":\"espaltherma\"}", true);
+          client.publish("homeassistant/switch/espAltherma/safety/config", "{\"availability\":[{\"topic\":\"espaltherma/LWT\",\"payload_available\":\"Online\",\"payload_not_available\":\"Offline\"}],\"availability_mode\":\"all\",\"unique_id\":\"espaltherma_safety\",\"device\":{\"identifiers\":[\"ESPAltherma\"],\"manufacturer\":\"ESPAltherma\",\"model\":\"M5StickC PLUS ESP32-PICO\",\"name\":\"ESPAltherma\"},\"icon\":\"mdi:water-boiler\",\"name\":\"EspAltherma Safety\",\"command_topic\":\"espaltherma/SAFETY\",\"state_topic\":\"espaltherma/SAFETY_STATE\",\"payload_on\":\"ON\",\"payload_off\":\"OFF\"}", true);
         #endif
         client.subscribe("espaltherma/SAFETY");
       #endif
