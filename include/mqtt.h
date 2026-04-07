@@ -149,7 +149,7 @@ void reconnectMqtt()
           client.publish("homeassistant/select/espAltherma/sg/config", "{\"availability\":[{\"topic\":\"espaltherma/LWT\",\"payload_available\":\"Online\",\"payload_not_available\":\"Offline\"}],\"availability_mode\":\"all\",\"unique_id\":\"espaltherma_sg\",\"device\":{\"identifiers\":[\"ESPAltherma\"],\"manufacturer\":\"ESPAltherma\",\"model\":\"M5StickC PLUS ESP32-PICO\",\"name\":\"ESPAltherma\"},\"icon\":\"mdi:solar-power\",\"name\":\"EspAltherma Smart Grid\",\"command_topic\":\"espaltherma/sg/set\",\"command_template\":\"{% if value == 'Free Running' %} 0 {% elif value == 'Forced Off' %} 1 {% elif value == 'Recommended On' %} 2 {% elif value == 'Forced On' %} 3 {% else %} 0 {% endif %}\",\"options\":[\"Free Running\",\"Forced Off\",\"Recommended On\",\"Forced On\"],\"state_topic\":\"espaltherma/sg/state\",\"value_template\":\"{% set mapper = { '0':'Free Running', '1':'Forced Off', '2':'Recommended On', '3':'Forced On' } %} {% set word = mapper[value] %} {{ word }}\"}", true);
         #endif
         client.subscribe("espaltherma/sg/set");
-        char state[1];
+        char state[4];
         sprintf(state, "%d", EEPROM.read(EEPROM_SG));
         client.publish("espaltherma/sg/state", state, true);
       #endif
@@ -376,6 +376,20 @@ void callbackPulse(byte *payload, unsigned int length)
   String ss((char*)payload);
   long target_watt = ss.toInt();
 
+  if (target_watt <= 0) {
+    if (timerPulseStart != NULL) {
+      timerAlarmDisable(timerPulseStart);
+      timerAlarmDisable(timerPulseEnd);
+      timerEnd(timerPulseStart);
+      timerEnd(timerPulseEnd);
+      timerPulseStart = NULL;
+      timerPulseEnd = NULL;
+      digitalWrite(PIN_PULSE, LOW);
+    }
+    client.publish("espaltherma/pulse/state", "0");
+    return;
+  }
+
   // also converts from kWh to Wh
   float WH_PER_PULSE = (1.0 / PULSES_PER_kWh) * 1000;
 
@@ -385,7 +399,7 @@ void callbackPulse(byte *payload, unsigned int length)
     // a change of the pulse is only applied, after the current pulse is finished. Thus if the pulse rate is very low,
     // it will take a long time to adjust the rate
     ms_until_pulse = 60 * 1000;
-    target_watt = (long) WH_PER_PULSE * 60;
+    target_watt = (long) (WH_PER_PULSE * 60);
     Serial.printf("Capping pulse to %d Watt to ensure pulse rate is <= 60 sec\n", target_watt);
   }
   if (ms_until_pulse < 100) {
