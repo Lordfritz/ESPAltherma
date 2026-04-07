@@ -9,9 +9,6 @@
 #define EEPROM_STATE 0
 #define EEPROM_SG 2
 
-#define MQTT_attr "espaltherma/ATTR"
-#define MQTT_lwt "espaltherma/LWT"
-
 #ifdef JSONTABLE
 char jsonbuff[MAX_MSG_SIZE] = "[{\0";
 #else
@@ -134,13 +131,17 @@ void reconnectMqtt()
       Serial.println("connected!");
       #ifdef MQTT_HA_DISCOVERY
         client.publish("homeassistant/sensor/espAltherma/AlthermaSensors/config", "{\"availability\":[{\"topic\":\"espaltherma/LWT\",\"payload_available\":\"Online\",\"payload_not_available\":\"Offline\"}],\"availability_mode\":\"all\",\"unique_id\":\"espaltherma_sensors\",\"device\":{\"identifiers\":[\"ESPAltherma\"],\"manufacturer\":\"ESPAltherma\",\"model\":\"M5StickC PLUS ESP32-PICO\",\"name\":\"ESPAltherma\"},\"icon\":\"mdi:access-point-check\",\"name\":\"ESPAltherma Sensors\",\"state_topic\":\"espaltherma/LWT\",\"json_attributes_topic\":\"espaltherma/ATTR\"}", true);
-        #ifdef PIN_THERM
-          client.publish("homeassistant/switch/espAltherma/switch/config", "{\"availability\":[{\"topic\":\"espaltherma/LWT\",\"payload_available\":\"Online\",\"payload_not_available\":\"Offline\"}],\"availability_mode\":\"all\",\"unique_id\":\"espaltherma_switch\",\"device\":{\"identifiers\":[\"ESPAltherma\"],\"manufacturer\":\"ESPAltherma\",\"model\":\"M5StickC PLUS ESP32-PICO\",\"name\":\"ESPAltherma\"},\"icon\":\"mdi:water-boiler\",\"name\":\"EspAltherma Heat Pump Demand\",\"command_topic\":\"espaltherma/POWER\",\"state_topic\":\"espaltherma/STATE\",\"payload_on\":\"ON\",\"payload_off\":\"OFF\"}", true);
-          // Subscribe
-          client.subscribe("espaltherma/POWER");
-        #endif
       #endif
       client.publish(MQTT_lwt, "Online", true);
+
+      #ifdef PIN_THERM
+        // Thermostat relay
+        #ifdef MQTT_HA_DISCOVERY
+          client.publish("homeassistant/switch/espAltherma/switch/config", "{\"availability\":[{\"topic\":\"espaltherma/LWT\",\"payload_available\":\"Online\",\"payload_not_available\":\"Offline\"}],\"availability_mode\":\"all\",\"unique_id\":\"espaltherma_switch\",\"device\":{\"identifiers\":[\"ESPAltherma\"],\"manufacturer\":\"ESPAltherma\",\"model\":\"M5StickC PLUS ESP32-PICO\",\"name\":\"ESPAltherma\"},\"icon\":\"mdi:water-boiler\",\"name\":\"EspAltherma Heat Pump Demand\",\"command_topic\":\"espaltherma/POWER\",\"state_topic\":\"espaltherma/STATE\",\"payload_on\":\"ON\",\"payload_off\":\"OFF\"}", true);
+        #endif
+      // Subscribe
+      client.subscribe("espaltherma/POWER");
+      #endif
 
       #ifdef PIN_SG1
         // Smart Grid
@@ -164,14 +165,15 @@ void reconnectMqtt()
       #ifdef PIN_PULSE
         // Pulse Meter
         #ifdef MQTT_HA_DISCOVERY
-          client.publish("homeassistant/number/espAltherma/pulse/config", "{\"availability\":[{\"topic\":\"espaltherma/LWT\",\"payload_available\":\"Online\",\"payload_not_available\":\"Offline\"}],\"availability_mode\":\"all\",\"unique_id\":\"espaltherma_grid\",\"device\":{\"identifiers\":[\"ESPAltherma\"],\"manufacturer\":\"ESPAltherma\",\"model\":\"M5StickC PLUS ESP32-PICO\",\"name\":\"ESPAltherma\"},\"icon\":\"mdi:meter-electric\",\"name\":\"EspAltherma Power Limitation\",\"min\":0,\"max\":90000,\"mode\":\"box\",\"unit_of_measurement\":\"W\",\"command_topic\":\"espaltherma/pulse/set\",\"state_topic\":\"espaltherma/pulse/state\"}", true);
-          client.subscribe("espaltherma/pulse/set");
-          client.publish("espaltherma/pulse/state", "0");
+          client.publish("homeassistant/number/espAltherma/pulse/config", "{\"availability\":[{\"topic\":\"espaltherma/LWT\",\"payload_available\":\"Online\",\"payload_not_available\":\"Offline\"}],\"availability_mode\":\"all\",\"unique_id\":\"espaltherma_grid\",\"device\":{\"identifiers\":[\"ESPAltherma\"],\"manufacturer\":\"ESPAltherma\",\"model\":\"M5StickC PLUS ESP32-PICO\",\"name\":\"ESPAltherma\"},\"icon\":\"mdi:meter-electric\",\"name\":\"EspAltherma Power Limitation\",\"min\":0,\"max\":90000,\"mode\":\"box\",\"unit_of_measurement\":\"W\",\"command_topic\":\"espaltherma/pulse/set\",\"state_topic\":\"espaltherma/pulse/state\"}", true);  
         #endif
+        client.subscribe("espaltherma/pulse/set");
+        client.publish("espaltherma/pulse/state", "0");
       #endif
 
       #ifndef PIN_THERM
         #ifdef MQTT_HA_DISCOVERY
+          // Publish empty retained message so discovered entities are removed from HA
           client.publish("homeassistant/switch/espAltherma/switch/config", "", true);
         #endif
       #endif
