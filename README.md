@@ -204,6 +204,7 @@ Note: Smart Grid needs to be switched ON in the heatpump configuration menu, oth
 
 ## Step 5 (optional) - Pulse Meter feature
 _Needs step 4 - Smart grid features_
+
 ESPaltherma can communicate how much energy the HP should consume via a pulse meter. For this, uncomment and confugre `PIN_PULSE`, `PULSES_PER_kWh` and `PULSE_DURATION_MS` in `src/setup.h`. Send energy amount in Watt to MQTT channel `espaltherma/pulse/set`. Current Watt setting is available in `espaltherma/pulse/state`.
 
 ### Hardware
