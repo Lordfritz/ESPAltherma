@@ -376,20 +376,6 @@ void callbackPulse(byte *payload, unsigned int length)
   String ss((char*)payload);
   long target_watt = ss.toInt();
 
-  if (target_watt <= 0) {
-    if (timerPulseStart != NULL) {
-      timerAlarmDisable(timerPulseStart);
-      timerAlarmDisable(timerPulseEnd);
-      timerEnd(timerPulseStart);
-      timerEnd(timerPulseEnd);
-      timerPulseStart = NULL;
-      timerPulseEnd = NULL;
-      digitalWrite(PIN_PULSE, LOW);
-    }
-    client.publish("espaltherma/pulse/state", "0");
-    return;
-  }
-
   // also converts from kWh to Wh
   float WH_PER_PULSE = (1.0 / PULSES_PER_kWh) * 1000;
 
