@@ -29,8 +29,13 @@
 #define TX_PIN    17// Pin connected to the RX pin of X10A
 #endif
 
-#define PIN_THERM 0// Pin connected to the thermostat relay (normally open)
-#define PIN_THERM_ACTIVE_STATE HIGH// State to trigger the thermostat relay
+//Thermostat control - Optional:
+//Uncomment and set to enable thermostat mqtt functions
+//#define PIN_THERM 0// Pin connected to the thermostat relay (normally open)
+// Define if your THERM relay board is Low or High triggered (signal pins)
+// Only uncomment one of them
+#define THERM_RELAY_HIGH_TRIGGER
+//#define THERM_RELAY_LOW_TRIGGER
 
 //Smart grid control - Optional:
 //Uncomment and set to enable SG mqtt functions
@@ -47,6 +52,21 @@
 // #define SAFETY_RELAY_PIN 33// Pin connected to the safety relay
 // #define SAFETY_RELAY_ACTIVE_STATE HIGH// Pin connected to the safety relay
 
+//Pulse Meter control - Optional:
+//Uncomment and set to enable Pulse Meter mqtt functions
+#define PIN_PULSE 0// Pin connected to pulse meter relay
+#define PULSES_PER_kWh 1000  // match setting on HP (TODO hint for setting path)
+#define PULSE_DURATION_MS 50  // Duration of the pulse, decrease on very high energy settings (TODO give example)
+//#define PULSE_LED_BUILTIN 1 // also pulse the build in LED
+
+// DO NOT CHANGE: Defines the thermostat active/inactive relay states, according to the definition of the trigger status
+#if defined(THERM_RELAY_LOW_TRIGGER)
+#define THERM_RELAY_ACTIVE_STATE LOW
+#define THERM_RELAY_INACTIVE_STATE HIGH
+#else
+#define THERM_RELAY_ACTIVE_STATE HIGH
+#define THERM_RELAY_INACTIVE_STATE LOW
+#endif
 
 // DO NOT CHANGE: Defines the SG active/inactive relay states, according to the definition of the trigger status
 #if defined(SG_RELAY_LOW_TRIGGER)
